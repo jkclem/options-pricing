@@ -3,12 +3,47 @@
 Created on Wed Dec 29 23:04:06 2021
 
 @author: jkcle
+
+Following Yves Hilpisch's code in Python for Finance.
 """
 
 import numpy as np
 
 
-def generate_paths(s_0, mu, sigma, periods, steps, num_paths):
+def generate_std_norm(rows, columns, anti_paths=True, mo_match=True):
+    """
+    
+
+    Parameters
+    ----------
+    rows : int
+        DESCRIPTION.
+    columns : int
+        DESCRIPTION.
+    anti_paths : bool
+        DESCRIPTION.
+    mo_match : bool
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+    if anti_paths is True:
+        assert columns % 2 == 0, 'Argument "anti_paths" is only valid for ' \
+                                  'even numbers!'
+        std_norms = np.random.standard_normal(size=(rows, int(columns/2)))
+        std_norms = np.concatenate((std_norms, -std_norms), axis=1)
+    else:
+        std_norms = np.random.standard_normal(size=(rows, columns))
+    if mo_match is True:
+        std_norms = (std_norms - std_norms.mean()) / std_norms.std()
+    return std_norms
+
+
+def generate_paths(s_0, mu, sigma, periods, steps, num_paths, 
+                   anti_paths=False, mo_match=True):
     """This generates geometric Brownian Motion paths of 
     prices/values/levels of an asset/portfolio/index using Monte Carlo 
     simulation.
@@ -26,23 +61,34 @@ def generate_paths(s_0, mu, sigma, periods, steps, num_paths):
         The volatility (standard deviation) of returns over a period.
     periods : float
         Number of periods being simulated.
-    steps : TYPE
-        Total number of .
-    num_paths : TYPE
+    steps : int
+        Total number of time steps to break up the simulation over.
+    num_paths : int
         The number of simulated paths to generate.
+    anti_paths : bool
+        Whether to use anti-paths in the Monte Carlo simulation. Default is
+        True.
+    mo_match : bool
+        Whether to use moment matching in the Monte Carlo simulation. Default
+        is True
 
     Returns
     -------
-    paths : numpy array, shape(num_paths, steps + 1)
+    paths : numpy array, shape(steps + 1, num_paths)
         The simulated paths.
 
     """
+    paths = np.zeros(shape=(steps+1, num_paths))
+    paths[0, :] = s_0
     dt = periods / steps
-    B_t = np.random.standard_normal(size=(num_paths, steps))
-    B_t = (B_t - B_t.mean()) / B_t.std()
-    paths = (mu - 0.5 * sigma**2)*dt + sigma*np.sqrt(dt)*B_t
-    paths = np.insert(paths, 0, 0, axis=1)
-    paths = paths.cumsum(axis=1)
-    paths = np.exp(paths)
+    B_t = generate_std_norm(steps, num_paths, anti_paths, mo_match)
+    for t in range(1, steps + 1):
+        paths[t, :] = paths[t-1, :] * np.exp(
+            (mu - 0.5 * sigma**2)*dt + sigma*np.sqrt(dt)*B_t[t-1, :]
+        )
+    
+    return paths
 
-    return paths * s_0
+
+
+
