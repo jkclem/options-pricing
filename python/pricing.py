@@ -11,19 +11,21 @@ import numpy as np
 
 
 def generate_std_norm(rows, columns, anti_paths=True, mo_match=True):
-    """
-    
+    """Generate a matrix of random draws from a standard normal distribution.    
 
     Parameters
     ----------
     rows : int
-        DESCRIPTION.
+        The number of rows in the random matrix.
     columns : int
-        DESCRIPTION.
+        The number of columns in the random matrix.
     anti_paths : bool
-        DESCRIPTION.
+        Whether or not to set half (must be even number of columns) of the
+        random column vectors as the negative of the other half i.e. mirror
+        half the paths. Default is True.
     mo_match : bool
-        DESCRIPTION.
+        Whether or not to standardize the first and second moments (mean and
+        standard deviation) of the random matrix. Default is True.
 
     Returns
     -------
