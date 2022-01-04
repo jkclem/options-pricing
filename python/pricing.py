@@ -147,7 +147,8 @@ def price_european_mc(K, s_0, mu, sigma, periods, steps, num_paths, option,
 
 def price_american_mc(K, s_0, mu, sigma, periods, steps, num_paths, option, 
                       anti_paths=False, mo_match=True):
-    """Estimates the value and standard deviation of a American option.
+    """Estimates the value and standard deviation of a American option. Using
+    Least-Squares Monte Carlo.
 
     Parameters
     ----------
