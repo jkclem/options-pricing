@@ -141,3 +141,62 @@ def price_european_mc(K, s_0, mu, sigma, periods, steps, num_paths, option,
 
     return (np.exp(-mu * periods) * np.mean(payoffs), 
             np.exp(-mu * periods) * np.std(payoffs))
+
+
+def price_american_mc(K, s_0, mu, sigma, periods, steps, num_paths, option, 
+                      anti_paths=False, mo_match=True):
+    """Estimates the value and standard deviation of a American option.
+
+    Parameters
+    ----------
+    K : float
+        The strick price of the option.
+    s_0 : float
+        Initial value.
+    mu : float
+        The mean compound return over a period.
+    sigma : float
+        The volatility (standard deviation) of returns over a period.
+    periods : float
+        Number of periods being simulated.
+    steps : int
+        Total number of time steps to break up the simulation over.
+    num_paths : int
+        The number of simulated paths to generate.
+    option : str
+        The type of option. Valid arguments are "call" and "put".
+    anti_paths : bool
+        Whether to use anti-paths in the Monte Carlo simulation. Default is
+        True.
+    mo_match : bool
+        Whether to use moment matching in the Monte Carlo simulation. Default
+        is True
+
+    Returns
+    -------
+    tuple
+        The Monte Carlo estimate and standard deviation of the value of an
+        American call option.
+
+    """
+    assert option in ['call', 'put'], 'Valid arguments for option are ' \
+                                      '"call" and "put"!'
+
+    df = np.exp(-mu * periods/steps)
+    paths = generate_paths(
+        s_0, mu, sigma, periods, steps, num_paths, anti_paths, mo_match
+        )
+
+    if option == 'call':
+        payoffs = np.maximum(paths - K, 0)
+    else:
+        payoffs = np.maximum(K - paths, 0)
+
+    V = np.copy(payoffs)
+
+    for t in range(steps - 1, 0, -1):
+        reg = np.polyfit(paths[t, :], V[t+1, :] * df, 7)
+        C = np.polyval(reg, paths[t, :])
+        V[t, :] = np.where(C > payoffs[t], V[t+1, :] * df, payoffs[t, :])
+
+    return df * np.mean(V[1, :]), df * np.std(V[1, :])
