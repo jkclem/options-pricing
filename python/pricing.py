@@ -44,7 +44,7 @@ def generate_std_norm(rows, columns, anti_paths=True, mo_match=True):
     return std_norms
 
 
-def generate_paths(s_0, mu, sigma, periods, steps, num_paths, 
+def generate_paths(s_0, r, sigma, periods, steps, num_paths, 
                    anti_paths=False, mo_match=True):
     """This generates geometric Brownian Motion paths of 
     prices/values/levels of an asset/portfolio/index using Monte Carlo 
@@ -57,8 +57,8 @@ def generate_paths(s_0, mu, sigma, periods, steps, num_paths,
     ----------
     s_0 : float
         Initial value.
-    mu : float
-        The mean compound return over a period.
+    r : float
+        The risk-free rate.
     sigma : float
         The volatility (standard deviation) of returns over a period.
     periods : float
@@ -86,15 +86,15 @@ def generate_paths(s_0, mu, sigma, periods, steps, num_paths,
     B_t = generate_std_norm(steps, num_paths, anti_paths, mo_match)
     for t in range(1, steps + 1):
         paths[t, :] = paths[t-1, :] * np.exp(
-            (mu - 0.5 * sigma**2)*dt + sigma*np.sqrt(dt)*B_t[t-1, :]
+            (r - 0.5 * sigma**2)*dt + sigma*np.sqrt(dt)*B_t[t-1, :]
         )
     
     return paths
 
 
-def price_european_mc(K, s_0, mu, sigma, periods, steps, num_paths, option, 
+def price_european_mc(K, s_0, r, sigma, periods, steps, num_paths, option, 
                       anti_paths=False, mo_match=True):
-    """Estimates the value and standard deviation of a European option. Just
+    """Estimates the value and standard deviation of an European option. Just
     for educational purposes, as an analytic formula exists.
 
     Parameters
@@ -103,8 +103,8 @@ def price_european_mc(K, s_0, mu, sigma, periods, steps, num_paths, option,
         The strick price of the option.
     s_0 : float
         Initial value.
-    mu : float
-        The mean compound return over a period.
+    r : float
+        The risk-free rate.
     sigma : float
         The volatility (standard deviation) of returns over a period.
     periods : float
@@ -124,16 +124,15 @@ def price_european_mc(K, s_0, mu, sigma, periods, steps, num_paths, option,
 
     Returns
     -------
-    tuple
-        The Monte Carlo estimate and standard deviation of the value of a
-        European call option.
+    float
+        The Monte Carlo estimate of the value of a European option.
 
     """
     assert option in ['call', 'put'], 'Valid arguments for option are ' \
                                       '"call" and "put"!'
 
     paths = generate_paths(
-        s_0, mu, sigma, periods, steps, num_paths, anti_paths, mo_match
+        s_0, r, sigma, periods, steps, num_paths, anti_paths, mo_match
         )
 
     if option == 'call':
@@ -141,14 +140,13 @@ def price_european_mc(K, s_0, mu, sigma, periods, steps, num_paths, option,
     else:
         payoffs = np.maximum(K - paths[-1, :], 0)
 
-    return (np.exp(-mu * periods) * np.mean(payoffs), 
-            np.exp(-mu * periods) * np.std(payoffs))
+    return np.exp(-r * periods) * np.mean(payoffs)
 
 
-def price_american_mc(K, s_0, mu, sigma, periods, steps, num_paths, option, 
+def price_american_mc(K, s_0, r, sigma, periods, steps, num_paths, option, 
                       anti_paths=False, mo_match=True):
-    """Estimates the value and standard deviation of a American option. Using
-    Least-Squares Monte Carlo.
+    """Estimates the value of an American option. Using Least-Squares Monte 
+    Carlo.
 
     Parameters
     ----------
@@ -156,8 +154,8 @@ def price_american_mc(K, s_0, mu, sigma, periods, steps, num_paths, option,
         The strick price of the option.
     s_0 : float
         Initial value.
-    mu : float
-        The mean compound return over a period.
+    r : float
+        The risk-free rate.
     sigma : float
         The volatility (standard deviation) of returns over a period.
     periods : float
@@ -177,17 +175,16 @@ def price_american_mc(K, s_0, mu, sigma, periods, steps, num_paths, option,
 
     Returns
     -------
-    tuple
-        The Monte Carlo estimate and standard deviation of the value of an
-        American call option.
+    float
+        The Monte Carlo estimate of the value of an American call option.
 
     """
     assert option in ['call', 'put'], 'Valid arguments for option are ' \
                                       '"call" and "put"!'
 
-    df = np.exp(-mu * periods/steps)
+    df = np.exp(-r * periods/steps)
     paths = generate_paths(
-        s_0, mu, sigma, periods, steps, num_paths, anti_paths, mo_match
+        s_0, r, sigma, periods, steps, num_paths, anti_paths, mo_match
         )
 
     if option == 'call':
@@ -198,8 +195,8 @@ def price_american_mc(K, s_0, mu, sigma, periods, steps, num_paths, option,
     V = np.copy(payoffs)
 
     for t in range(steps - 1, 0, -1):
-        reg = np.polyfit(paths[t, :], V[t+1, :] * df, 7)
+        reg = np.polyfit(paths[t, :], V[t+1, :] * df, 3)
         C = np.polyval(reg, paths[t, :])
         V[t, :] = np.where(C > payoffs[t], V[t+1, :] * df, payoffs[t, :])
 
-    return df * np.mean(V[1, :]), df * np.std(V[1, :])
+    return df * np.mean(V[1, :])
