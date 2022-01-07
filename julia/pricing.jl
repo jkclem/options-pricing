@@ -24,13 +24,13 @@ along with this program. If not, see http://www.gnu.org/licenses/.
 
 This is a translation of Yves Hilpisch's Python code into Julia.
 =#
-using Dates, Random, Distributions
+using Dates, Random, Distributions, Interpolations
 
 # Helper functions
 
 
 function get_year_deltas(time_list, day_count=365.)
-    #=Return vector of floats with time deltas in years.
+    #= Return vector of floats with time deltas in years.
     Initial value normalized to zero.
 
     Parameters
@@ -58,7 +58,7 @@ end
 
 
 function sn_random_numbers(shape, antithetic=true, moment_matching=true, fixed_seed=false)
-    #=Return an array of shape "shape" with (pseudo-) random numbers
+    #= Return an array of shape "shape" with (pseudo-) random numbers
     which are standard normally distributed.
     Parameters
     ==========
@@ -97,49 +97,115 @@ function sn_random_numbers(shape, antithetic=true, moment_matching=true, fixed_s
 end
 
 
-#=
-# Discounting classes
+# Discounting Structs
 
-
-class constant_short_rate(object):
-    ''' Class for constant short rate discounting.
+struct constant_short_rate
+    #= Struct for constant short rate discounting.
     Attributes
     ==========
     name : string
         name of the object
     short_rate : float (positive)
         constant rate for discounting
-    Methods
+
+    Associated Functions
     =======
-    get_forward_rates :
-        get forward rates give list/array of datetime objects;
-        here: constant forward rates
-    get_discount_factors :
+    get_discount_factors
         get discount factors given a list/array of datetime objects
         or year fractions
-    '''
+    =#
+    name::String
+    short_rate::Float64
+end
 
-    def __init__(self, name, short_rate):
-        self.name = name
-        self.short_rate = short_rate
-        if short_rate < 0:
-            raise ValueError('Short rate negative.')
 
-    def get_forward_rates(self, time_list, paths=None, dtobjects=True):
-        ''' time_list either list of datetime objects or list of
-        year deltas as decimal number (dtobjects=False)
-        '''
-        forward_rates = np.array(len(time_list) * (self.short_rate,))
-        return time_list, forward_rates
+function get_discount_factors(constant_short_rate_obj, time_list, dtobjects=true)
+    if dtobjects == true
+        dlist = get_year_deltas(time_list)
+    else
+        dlist = time_list
+    end
+    discount_factors = exp.(constant_short_rate_obj.short_rate * sort(-dlist))
+    return time_list, discount_factors
+end
 
-    def get_discount_factors(self, time_list, paths=None, dtobjects=True):
-        if dtobjects is True:
-            dlist = get_year_deltas(time_list)
-        else:
-            dlist = np.array(time_list)
-        discount_factors = np.exp(self.short_rate * np.sort(-dlist))
-        return time_list, discount_factors
 
+struct deterministic_short_rate
+    #= Stuct for discounting based on deterministic short rates,
+    derived from a term structure of zero-coupon bond yields
+    Attributes
+    ==========
+    name : string
+        name of the object
+    yield_list : list/array of (time, yield) tuples
+        input yields with time attached
+
+    Associated Functions
+    =======
+    get_interpolated_yields :
+        return interpolated yield curve given a time list/array
+    get_forward_rates :
+        return forward rates given a time list/array
+    get_discount_factors :
+        return discount factors given a time list/array
+    =#
+    name::String
+    yield_list::Array
+end
+
+function get_interpolated_yields(deterministic_short_rate_obj, time_list, dtobjects=true)
+    #= time_list either list of datetime objects or list of
+    year deltas as decimal number (dtobjects=False)
+    =#
+    if dtobjects == true
+        tlist = get_year_deltas(time_list)
+    else
+        tlist = time_list
+    end
+
+    dtuple = tuple(get_year_deltas(deterministic_short_rate_obj.yield_list[:, 1]))
+    yield_vec = convert(Vector{Float64}, deterministic_short_rate_obj.yield_list[:,2])
+
+    if length(dtuple) <= 3
+        yield_spline = interpolate(dtuple, yield_vec, Gridded(Linear()))
+    else
+        yield_spline = interpolate(dtuple, yield_vec, (BSpline(Cubic(Natural(OnGrid())))))
+    end
+    yield_curve = extrapolate(yield_spline, tlist)
+    #yield_deriv = sci.splev(tlist, yield_spline, der=1)
+    yield_mat = cat([time_list, yield_curve], dims=2) #, yield_deriv
+    return yield_mat
+end
+
+dates = [
+    DateTime(2022, 1, 1),
+    DateTime(2022, 3, 1),
+    DateTime(2022, 6, 1),
+    DateTime(2022, 9, 1),
+    DateTime(2023, 1, 1)
+]
+dates_alt = [
+    DateTime(2022, 2, 1),
+    DateTime(2022, 4, 1),
+    DateTime(2022, 7, 1),
+    DateTime(2022, 10, 1),
+    DateTime(2022, 11, 1)
+]
+yields = [
+    0.015,
+    0.017,
+    0.028,
+    0.031,
+    0.036
+    ]
+time_list = get_year_deltas(dates)
+yield_arr = cat(dates, yields, dims=2)
+yield_list = cat(time_list, yields, dims=2)
+a = deterministic_short_rate("my_market", yield_arr)
+itpp = interpolate(tuple(yield_list[:, 1]), yield_list[:, 2], Gridded(Linear()))
+b = get_interpolated_yields(a, dates_alt, true)
+#=interpolate(tuple(yield_list[:, 1]), yield_list[:, 2], (BSpline(Cubic(Natural(OnGrid())))))
+# Discounting classes
 
 class deterministic_short_rate(object):
     ''' Class for discounting based on deterministic short rates,
