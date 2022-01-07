@@ -21,8 +21,10 @@ GNU Affero General Public License for more details.
 
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see http://www.gnu.org/licenses/.
+
+This is a translation of Yves Hilpisch's Python code into Julia.
 =#
-using Dates
+using Dates, Random, Distributions
 
 # Helper functions
 
@@ -40,7 +42,7 @@ function get_year_deltas(time_list, day_count=365.)
 
     Results
     =======
-    delta_list : array
+    delta_list : Array{Float64}
         year fractions
     =#
 
@@ -55,41 +57,47 @@ function get_year_deltas(time_list, day_count=365.)
 end
 
 
-#=
-def sn_random_numbers(shape, antithetic=True, moment_matching=True,
-                      fixed_seed=False):
-    ''' Return an array of shape "shape" with (pseudo-) random numbers
+function sn_random_numbers(shape, antithetic=true, moment_matching=true, fixed_seed=false)
+    #=Return an array of shape "shape" with (pseudo-) random numbers
     which are standard normally distributed.
     Parameters
     ==========
-    shape : tuple (o, n, m)
+    shape : Tuple{Int64} (o, n, m)
         generation of array with shape (o, n, m)
-    antithetic : boolean
+    antithetic : Bool
         generation of antithetic variates
-    moment_matching : boolean
+    moment_matching : Bool
         matching of first and second moments
-    fixed_seed : boolean
+    fixed_seed : Bool
         flag to fix the seed
     Results
     =======
-    ran : (o, n, m) array of (pseudo-)random numbers
-    '''
-    if fixed_seed is True:
-        np.random.seed(1000)
-    if antithetic is True:
-        ran = np.random.standard_normal(
-            (shape[0], shape[1], int(shape[2] / 2)))
-        ran = np.concatenate((ran, -ran), axis=2)
-    else:
-        ran = np.random.standard_normal(shape)
-    if moment_matching is True:
-        ran = ran - np.mean(ran)
-        ran = ran / np.std(ran)
-    if shape[0] == 1:
-        return ran[0]
-    else:
-        return ran
+    ran : Array{Float64} (o, n, m) 
+        array of (pseudo-)random numbers
+    =#
+    #if fixed_seed is True:
+    #    np.random.seed(1000)
+    if antithetic == true
+        ran = randn((shape[1], shape[2], Int(shape[3] / 2)))
+        ran = cat(ran, -ran, dims=3)
+    else
+        ran = randn(shape)
+    end
 
+    if moment_matching == true
+        ran = ran .- mean(ran)
+        ran = ran ./ std(ran)
+    end
+
+    if shape[1] == 1
+        ran = ran[1, :, :]
+    end
+
+    return ran
+end
+
+
+#=
 # Discounting classes
 
 
