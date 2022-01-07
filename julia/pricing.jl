@@ -173,49 +173,42 @@ function get_interpolated_yields(deterministic_short_rate_obj, time_list, dtobje
     end
     yield_spline_ex = extrapolate(yield_spline, Line())
     yield_curve = yield_spline_ex(tlist)
-    #yield_deriv = sci.splev(tlist, yield_spline, der=1)
-    yield_mat = hcat(time_list, yield_curve) #, yield_deriv
+    yield_deriv = Interpolations.ChainRulesCore.rrule(yield_spline_ex, tlist)[2].x[1]
+    yield_mat = hcat(time_list, yield_curve, yield_deriv)
     return yield_mat
 end
 
-dates = [
-    DateTime(2022, 1, 1),
-    DateTime(2022, 3, 1),
-    DateTime(2022, 6, 1),
-    DateTime(2022, 9, 1),
-    DateTime(2023, 1, 1)
-]
-dates_alt = [
-    DateTime(2022, 1, 1),
-    DateTime(2022, 2, 1),
-    DateTime(2022, 3, 1),
-    DateTime(2022, 4, 1),
-    DateTime(2022, 5, 1),
-    DateTime(2022, 6, 1),
-    DateTime(2022, 7, 1),
-    DateTime(2022, 8, 1),
-    DateTime(2022, 9, 1),
-    DateTime(2022, 10, 1),
-    DateTime(2022, 11, 1),
-    DateTime(2022, 12, 1),
-    DateTime(2023, 1, 1),
-    DateTime(2023, 2, 1),
+dates = [DateTime(2021, 1, 1)]
+yields = [0.015]
+for i in 1:365:5
+    append!(dates_abc, dates_abc + Day(i))
+    append!(yields, yields * 1.05)
+end
 
-]
-yields = [
-    0.015,
-    0.017,
-    0.028,
-    0.031,
-    0.036
-    ]
+dates_alt = [DateTime(2021, 1, 1)]
+for i in 1:365
+    append!(dates_abc, dates_abc + Day(i))
+end
+
 time_list = get_year_deltas(dates)
+time_list_alt = get_year_deltas(dates_alt)
 yield_arr = cat(dates, yields, dims=2)
 yield_list = cat(time_list, yields, dims=2)
+
 a = deterministic_short_rate("my_market", yield_arr)
-itpp = interpolate(tuple(yield_list[:, 1]), yield_list[:, 2], Gridded(Linear()))
-itpp_ex = extrapolate(itpp, Line())
+
 b = get_interpolated_yields(a, dates_alt, true)
+
+yield_vec = convert(Vector{Float64}, yield_list[:,2])
+
+
+using Plots
+
+scatter(time_list_alt, b[:, 2])
+scatter!(time_list, yields)
+plot!(time_list_alt, b[:, 2])
+
+
 #=interpolate(tuple(yield_list[:, 1]), yield_list[:, 2], (BSpline(Cubic(Natural(OnGrid())))))
 [reshape(b[1], 1, :); reshape(b[2], 1, :)]
 # Discounting classes
