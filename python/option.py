@@ -374,8 +374,10 @@ class Option(object):
 
 
 ###
-# Testing
+# Testing Functions
 ###
+
+
 from matplotlib import pyplot as plt
 
 
@@ -412,66 +414,6 @@ def plot_sim_paths(num_steps,
     return
 
 
-spot0 = 100
-call_strike = 110
-put_strike = 95
-r = 0.05
-vol = 0.1
-start_date = datetime(year=2022, month=1, day=1)
-expire_date = datetime(year=2023, month=1, day=1)
-
-steps = 50
-num_paths = 1000
-anti_paths = True
-mo_match = True
-save_paths = True
-
-"""
-american_call = Option(
-    'call', spot0, call_strike, r, vol, 'american', start_date, expire_date
-    )
-american_put = Option(
-    'put', spot0, put_strike, r, vol, 'american', start_date, expire_date
-    )
-european_call = Option(
-    'call', spot0, call_strike, r, vol, 'european', start_date, expire_date
-    )
-european_put = Option(
-    'put', spot0, put_strike, r, vol, 'european', start_date, expire_date
-    )
-
-am_call_val = american_call.price_mc(
-    steps, num_paths, anti_paths, mo_match, save_paths
-    )
-am_put_val = american_put.price_mc(
-    steps, num_paths, anti_paths, mo_match, save_paths
-    )
-eur_call_val = european_call.price_mc(
-    steps, num_paths, anti_paths, mo_match, save_paths
-    )
-eur_put_val = european_put.price_mc(
-    steps, num_paths, anti_paths, mo_match, save_paths
-    )
-
-print(f'American Call Value: {am_call_val}')
-print(f'American Put Value: {am_put_val}')
-print(f'European Call Value: {eur_call_val}')
-print(f'European Put Value: {eur_put_val}')
-
-plot_sim_paths(
-    steps, american_call, linestyles='dashed', color='k', label='Strike Price'
-    )
-plot_sim_paths(
-    steps, american_put, linestyles='dashed', color='k', label='Strike Price'
-    )
-plot_sim_paths(
-    steps, european_call, linestyles='dashed', color='k', label='Strike Price'
-    )
-plot_sim_paths(
-    steps, european_put, linestyles='dashed', color='k', label='Strike Price'
-    )
-"""
-
 def plot_value_vs_strike(strike_delta,
                          opt_type, 
                          spot0,
@@ -498,61 +440,7 @@ def plot_value_vs_strike(strike_delta,
     plt.plot(strike_range, values)
     plt.title(f'{exercise.upper()} {opt_type.upper()} Value vs. Strike '\
               f'(r = {r}, Vol = {vol})')
-    plt.xlabel('Option Value')
-    plt.ylabel('Strike Price')
+    plt.xlabel('Strike Price')
+    plt.ylabel('Option Value')
     plt.show();
     return
-
-strike_delta = 20
-plot_value_vs_strike(strike_delta=strike_delta,
-                     opt_type='call', 
-                     spot0=spot0,
-                     r=r,
-                     vol=vol,
-                     exercise='american',
-                     start_date=start_date,
-                     expire_date=expire_date,
-                     steps=steps,
-                     num_paths=num_paths,
-                     anti_paths=anti_paths,
-                     mo_match=mo_match
-                    )
-plot_value_vs_strike(strike_delta=strike_delta,
-                     opt_type='put', 
-                     spot0=spot0,
-                     r=r,
-                     vol=vol,
-                     exercise='american',
-                     start_date=start_date,
-                     expire_date=expire_date,
-                     steps=steps,
-                     num_paths=num_paths,
-                     anti_paths=anti_paths,
-                     mo_match=mo_match
-                    )
-plot_value_vs_strike(strike_delta=strike_delta,
-                     opt_type='call', 
-                     spot0=spot0,
-                     r=r,
-                     vol=vol,
-                     exercise='european',
-                     start_date=start_date,
-                     expire_date=expire_date,
-                     steps=steps,
-                     num_paths=num_paths,
-                     anti_paths=anti_paths,
-                     mo_match=mo_match
-                    )
-plot_value_vs_strike(strike_delta=strike_delta,
-                     opt_type='put', 
-                     spot0=spot0,
-                     r=r,
-                     vol=vol,
-                     exercise='european',
-                     start_date=start_date,
-                     expire_date=expire_date,
-                     steps=steps,
-                     num_paths=num_paths,
-                     anti_paths=anti_paths,
-                     mo_match=mo_match
-                    )
