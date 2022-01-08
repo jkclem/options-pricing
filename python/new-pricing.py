@@ -385,6 +385,12 @@ vol = 0.2
 start_date = datetime(year=2022, month=1, day=1)
 expire_date = datetime(year=2023, month=1, day=1)
 
+steps = 252  # Number of trading days in a year.
+num_paths = 10
+anti_paths = True
+mo_match = True
+save_paths = True
+
 american_call = Option(
     'call', spot0, call_strike, r, vol, 'american', start_date, expire_date
     )
@@ -398,12 +404,23 @@ european_put = Option(
     'put', spot0, put_strike, r, vol, 'european', start_date, expire_date
     )
 
+am_call_val = american_call.price_mc(
+    steps, num_paths, anti_paths, mo_match, save_paths
+    )
+am_put_val = american_put.price_mc(
+    steps, num_paths, anti_paths, mo_match, save_paths
+    )
+eur_call_val = european_call.price_mc(
+    steps, num_paths, anti_paths, mo_match, save_paths
+    )
+eur_put_val = european_put.price_mc(
+    steps, num_paths, anti_paths, mo_match, save_paths
+    )
 
-
-
-
-
-
+print(f'American Call Value: {am_call_val}')
+print(f'American Put Value: {am_put_val}')
+print(f'European Call Value: {eur_call_val}')
+print(f'European Put Value: {eur_put_val}')
 
 
 
