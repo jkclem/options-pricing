@@ -11,7 +11,9 @@ import numpy as np
 
 
 def generate_std_norm(rows, columns, anti_paths=True, mo_match=True):
-    """Generate a matrix of random draws from a standard normal distribution.    
+    """Generate a matrix of random draws from a standard normal distribution.
+
+    Following Yves Hilpisch's code in Python for Finance.
 
     Parameters
     ----------
@@ -76,7 +78,7 @@ def generate_paths(s_0, r, sigma, periods, steps, num_paths,
 
     Returns
     -------
-    paths : numpy array, shape(steps + 1, num_paths)
+    paths : numpy ndarray, shape(steps + 1, num_paths)
         The simulated paths.
 
     """

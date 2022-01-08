@@ -415,17 +415,18 @@ def plot_sim_paths(num_steps,
 spot0 = 100
 call_strike = 110
 put_strike = 95
-r = 0.1
-vol = 0.25
+r = 0.05
+vol = 0.1
 start_date = datetime(year=2022, month=1, day=1)
 expire_date = datetime(year=2023, month=1, day=1)
 
-steps = 252  # Number of trading days in a year.
+steps = 50
 num_paths = 1000
 anti_paths = True
 mo_match = True
 save_paths = True
 
+"""
 american_call = Option(
     'call', spot0, call_strike, r, vol, 'american', start_date, expire_date
     )
@@ -469,4 +470,88 @@ plot_sim_paths(
 plot_sim_paths(
     steps, european_put, linestyles='dashed', color='k', label='Strike Price'
     )
+"""
 
+def plot_value_vs_strike(strike_delta,
+                         opt_type, 
+                         spot0,
+                         r, 
+                         vol, 
+                         exercise,
+                         start_date,
+                         expire_date,
+                         steps,
+                         num_paths,
+                         anti_paths,
+                         mo_match
+                         ):
+    strike_range = np.arange(spot0 - strike_delta, spot0 + strike_delta + 1)
+    values = []
+    for strike_price in strike_range:
+        temp_option = Option(
+        opt_type, spot0, int(strike_price), r, vol, exercise, start_date, expire_date
+        )
+        temp_val = temp_option.price_mc(
+            steps, num_paths, anti_paths, mo_match, save_paths=False
+            )
+        values.append(temp_val)
+    plt.plot(strike_range, values)
+    plt.title(f'{exercise.upper()} {opt_type.upper()} Value vs. Strike')
+    plt.xlabel('Option Value')
+    plt.ylabel('Strike Price')
+    plt.show();
+    return
+
+strike_delta = 20
+plot_value_vs_strike(strike_delta=strike_delta,
+                     opt_type='call', 
+                     spot0=spot0,
+                     r=r,
+                     vol=vol,
+                     exercise='american',
+                     start_date=start_date,
+                     expire_date=expire_date,
+                     steps=steps,
+                     num_paths=num_paths,
+                     anti_paths=anti_paths,
+                     mo_match=mo_match
+                    )
+plot_value_vs_strike(strike_delta=strike_delta,
+                     opt_type='put', 
+                     spot0=spot0,
+                     r=r,
+                     vol=vol,
+                     exercise='american',
+                     start_date=start_date,
+                     expire_date=expire_date,
+                     steps=steps,
+                     num_paths=num_paths,
+                     anti_paths=anti_paths,
+                     mo_match=mo_match
+                    )
+plot_value_vs_strike(strike_delta=strike_delta,
+                     opt_type='call', 
+                     spot0=spot0,
+                     r=r,
+                     vol=vol,
+                     exercise='european',
+                     start_date=start_date,
+                     expire_date=expire_date,
+                     steps=steps,
+                     num_paths=num_paths,
+                     anti_paths=anti_paths,
+                     mo_match=mo_match
+                    )
+plot_value_vs_strike(strike_delta=strike_delta,
+                     opt_type='put', 
+                     spot0=spot0,
+                     r=r,
+                     vol=vol,
+                     exercise='european',
+                     start_date=start_date,
+                     expire_date=expire_date,
+                     steps=steps,
+                     num_paths=num_paths,
+                     anti_paths=anti_paths,
+                     mo_match=mo_match
+                    )
