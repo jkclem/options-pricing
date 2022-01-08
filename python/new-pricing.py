@@ -378,16 +378,50 @@ class Option(object):
 ###
 from matplotlib import pyplot as plt
 
+
+def plot_sim_paths(num_steps, 
+                   option, 
+                   title='Simulated Price Paths for {exercise} {opt_type} Option', 
+                   xlab='Time (Start = 0, Expiry = 1)', 
+                   ylab='Asset Price', 
+                   add_strike=True,
+                   **kwargs
+                   ):
+
+    if title == 'Simulated Price Paths for {exercise} {opt_type} Option':
+        title = title.format(
+            exercise=option.exercise.upper(),
+            opt_type=option.opt_type.upper()
+            )
+
+    x = np.arange(0, num_steps + 1) / num_steps
+    plt.plot(x, option.sim_paths)
+    plt.xlabel(xlab)
+    plt.ylabel(ylab)
+    plt.title(title)
+
+    if add_strike:
+        plt.hlines(
+            option.strike, xmin=np.min(x), xmax=np.max(x), zorder=len(x) + 1,
+            **kwargs
+            )
+        plt.legend()
+    
+    plt.show();
+
+    return
+
+
 spot0 = 100
 call_strike = 110
 put_strike = 95
-r = 0.05
-vol = 0.2
+r = 0.1
+vol = 0.25
 start_date = datetime(year=2022, month=1, day=1)
 expire_date = datetime(year=2023, month=1, day=1)
 
 steps = 252  # Number of trading days in a year.
-num_paths = 10
+num_paths = 1000
 anti_paths = True
 mo_match = True
 save_paths = True
@@ -423,36 +457,16 @@ print(f'American Put Value: {am_put_val}')
 print(f'European Call Value: {eur_call_val}')
 print(f'European Put Value: {eur_put_val}')
 
-
-def plot_sim_paths(num_steps, 
-                   option, 
-                   title='Simulated Price Paths for {exercise} {opt_type} Option', 
-                   xlab='Time (Start = 0, Expiry = 1)', 
-                   ylab='Asset Price', 
-                   add_strike=True,
-                   **kwargs
-                   ):
-
-    if title == 'Simulated Price Paths for {exercise} {opt_type} Option':
-        title = title.format(
-            exercise=option.exercise.upper(),
-            opt_type=option.opt_type.upper()
-            )
-
-    x = np.arange(0, num_steps + 1) / num_steps
-    plt.plot(x, option.sim_paths)
-    plt.xlabel(xlab)
-    plt.ylabel(ylab)
-    plt.title(title)
-
-    if add_strike:
-        plt.hlines(option.strike, xmin=np.min(x), xmax=np.max(x), **kwargs)
-        plt.legend()
-    
-    plt.show();
-
-    return
 plot_sim_paths(
     steps, american_call, linestyles='dashed', color='k', label='Strike Price'
+    )
+plot_sim_paths(
+    steps, american_put, linestyles='dashed', color='k', label='Strike Price'
+    )
+plot_sim_paths(
+    steps, european_call, linestyles='dashed', color='k', label='Strike Price'
+    )
+plot_sim_paths(
+    steps, european_put, linestyles='dashed', color='k', label='Strike Price'
     )
 
