@@ -496,7 +496,8 @@ def plot_value_vs_strike(strike_delta,
             )
         values.append(temp_val)
     plt.plot(strike_range, values)
-    plt.title(f'{exercise.upper()} {opt_type.upper()} Value vs. Strike')
+    plt.title(f'{exercise.upper()} {opt_type.upper()} Value vs. Strike '\
+              f'(r = {r}, Vol = {vol})')
     plt.xlabel('Option Value')
     plt.ylabel('Strike Price')
     plt.show();
