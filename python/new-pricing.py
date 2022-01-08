@@ -47,6 +47,54 @@ def generate_std_norm(n, m, anti_paths=True, mo_match=True):
     return std_norms
 
 
+def generate_gbm_paths(spot0, r, vol, periods, steps, num_paths, 
+                       anti_paths=False, mo_match=True):
+    """This generates geometric Brownian Motion paths of 
+    prices/values/levels of an asset/portfolio/index using Monte Carlo 
+    simulation.
+
+    CAUTION: this produces a num_paths x (steps + 1) array. Using large values
+    can generate matrices too large to fit in memory, or can cause slow downs.
+
+    Parameters
+    ----------
+    spot0 : float
+        Initial value.
+    r : float
+        The risk-free rate.
+    vol : float
+        The volatility (standard deviation) of returns over a period.
+    periods : float
+        Number of periods being simulated.
+    steps : int
+        Total number of time steps to break up the simulation over.
+    num_paths : int
+        The number of simulated paths to generate.
+    anti_paths : bool
+        Whether to use anti-paths in the Monte Carlo simulation. Default is
+        True.
+    mo_match : bool
+        Whether to use moment matching in the Monte Carlo simulation. Default
+        is True
+
+    Returns
+    -------
+    paths : numpy ndarray, shape(steps + 1, num_paths)
+        The simulated paths.
+
+    """
+    paths = np.zeros(shape=(steps+1, num_paths))
+    paths[0, :] = spot0
+    dt = periods / steps
+    B_t = generate_std_norm(steps, num_paths, anti_paths, mo_match)
+    for t in range(1, steps + 1):
+        paths[t, :] = paths[t-1, :] * np.exp(
+            (r - 0.5 * vol**2)*dt + vol*np.sqrt(dt)*B_t[t-1, :]
+        )
+    
+    return paths
+
+
 def check_option_params(opt_type, 
                         spot0, 
                         strike, 
@@ -157,14 +205,122 @@ class Option(object):
             r=self.r,
             vol=self.vol,
             exercise=self.exercise,
+            start_date=start_date,
+            expire_date=self.expire_date,
             instr_yield=self.instr_yield
             )
+
+    '''
+    def price_european_mc(K, spot0, r, vol, periods, steps, num_paths, option, 
+                          anti_paths=False, mo_match=True):
+        """Estimates the value and standard deviation of an European option. Just
+        for educational purposes, as an analytic formula exists.
+    
+        Parameters
+        ----------
+        K : float
+            The strick price of the option.
+        spot0 : float
+            Initial value.
+        r : float
+            The risk-free rate.
+        vol : float
+            The volatility (standard deviation) of returns over a period.
+        periods : float
+            Number of periods being simulated.
+        steps : int
+            Total number of time steps to break up the simulation over.
+        num_paths : int
+            The number of simulated paths to generate.
+        option : str
+            The type of option. Valid arguments are "call" and "put".
+        anti_paths : bool
+            Whether to use anti-paths in the Monte Carlo simulation. Default is
+            True.
+        mo_match : bool
+            Whether to use moment matching in the Monte Carlo simulation. Default
+            is True
+    
+        Returns
+        -------
+        float
+            The Monte Carlo estimate of the value of a European option.
+    
+        """
+        assert option in ['call', 'put'], 'Valid arguments for option are ' \
+                                          '"call" and "put"!'
+    
+        paths = generate_gbm_paths(
+            spot0, r, vol, periods, steps, num_paths, anti_paths, mo_match
+            )
+    
+        if option == 'call':
+            payoffs = np.maximum(paths[-1, :] - K, 0)
+        else:
+            payoffs = np.maximum(K - paths[-1, :], 0)
+    
+        return np.exp(-r * periods) * np.mean(payoffs)
+    '''
+    
+    def price_american_mc(self, 
+                            steps, 
+                            num_paths, 
+                            anti_paths=False, 
+                            mo_match=True
+                            ):
+        """Estimates the value of an American option. Using Least-Squares 
+        Monte Carlo.
+    
+        Parameters
+        ----------
+        steps : int
+            Total number of time steps to break up the simulation over.
+        num_paths : int
+            The number of simulated paths to generate.
+        anti_paths : bool
+            Whether to use anti-paths in the Monte Carlo simulation. Default is
+            True.
+        mo_match : bool
+            Whether to use moment matching in the Monte Carlo simulation. Default
+            is True
+    
+        Returns
+        -------
+        float
+            The Monte Carlo estimate of the value of an American call option.
+    
+        """
+        K = self.strike
+        spot0 = self.spot0
+        r = self.r
+        vol = self.vol
+        periods = self.year_delta
+        opt_type = self.opt_type
+    
+        df = np.exp(-r * periods/steps)
+        paths = generate_gbm_paths(
+            spot0, r, vol, periods, steps, num_paths, anti_paths, mo_match
+            )
+    
+        if opt_type == 'call':
+            payoffs = np.maximum(paths - K, 0)
+        else:
+            payoffs = np.maximum(K - paths, 0)
+    
+        V = np.copy(payoffs)
+    
+        for t in range(steps - 1, 0, -1):
+            reg = np.polyfit(paths[t, :], V[t+1, :] * df, 3)
+            C = np.polyval(reg, paths[t, :])
+            V[t, :] = np.where(C > payoffs[t], V[t+1, :] * df, payoffs[t, :])
+    
+        return df * np.mean(V[1, :])
 
 
 
 start_date = datetime(year=2022, month=1, day=1)
 expire_date = datetime(year=2023, month=1, day=1)
-a = Option('call', 100., 105., 0.015, 0.25, 'european', start_date, expire_date)
+a = Option('call', 100., 105., 0.015, 0.25, 'american', start_date, expire_date)
 
 
 
