@@ -3,6 +3,9 @@
 Created on Fri Jan  7 21:01:39 2022
 
 @author: jkcle
+
+Code draws from Yves Hilpisch's code in Python for Finance and Ben Gimpert's
+code in pyfin (https://github.com/someben/pyfin/blob/master/pyfin).
 """
 from datetime import datetime
 import numpy as np
@@ -10,8 +13,6 @@ import numpy as np
 
 def generate_std_norm(n, m, anti_paths=True, mo_match=True):
     """Generate a matrix of random draws from a standard normal distribution.
-
-    Following Yves Hilpisch's code in Python for Finance.
 
     Parameters
     ----------
@@ -210,36 +211,82 @@ class Option(object):
             instr_yield=self.instr_yield
             )
 
-    '''
-    def price_european_mc(K, spot0, r, vol, periods, steps, num_paths, option, 
-                          anti_paths=False, mo_match=True):
-        """Estimates the value and standard deviation of an European option. Just
-        for educational purposes, as an analytic formula exists.
-    
-        Parameters
-        ----------
-        K : float
-            The strick price of the option.
-        spot0 : float
-            Initial value.
-        r : float
-            The risk-free rate.
-        vol : float
-            The volatility (standard deviation) of returns over a period.
-        periods : float
-            Number of periods being simulated.
+
+    def price_mc(self, 
+                 steps, 
+                 num_paths, 
+                 anti_paths=False, 
+                 mo_match=True,
+                 save_paths=False
+                 ):
+        """
+        
+
         steps : int
             Total number of time steps to break up the simulation over.
         num_paths : int
             The number of simulated paths to generate.
-        option : str
-            The type of option. Valid arguments are "call" and "put".
         anti_paths : bool
-            Whether to use anti-paths in the Monte Carlo simulation. Default is
-            True.
+            Whether to use anti-paths in the Monte Carlo simulation. Default
+            is True.
         mo_match : bool
-            Whether to use moment matching in the Monte Carlo simulation. Default
-            is True
+            Whether to use moment matching in the Monte Carlo simulation. 
+            Default is True
+        save_paths : bool
+            Whether or not to save the paths to the Option object. Default is
+            False.
+
+        Returns
+        -------
+        float
+            The Monte Carlo estimate of the value of a European option.
+    
+        """
+        if self.opt_type == 'american':
+            self.value = self.__price_american_mc(
+                            steps=steps, 
+                            num_paths=num_paths, 
+                            anti_paths=anti_paths, 
+                            mo_match=mo_match,
+                            save_paths=save_paths
+                            )
+        else:  # If the exercise is 'european'
+            self.value = self.__price_european_mc(
+                            steps=steps, 
+                            num_paths=num_paths, 
+                            anti_paths=anti_paths, 
+                            mo_match=mo_match,
+                            save_paths=save_paths
+                            )
+        return self.value
+        
+
+    
+    def __price_european_mc(self, 
+                            steps, 
+                            num_paths, 
+                            anti_paths=False, 
+                            mo_match=True,
+                            save_paths=False
+                            ):
+        """Estimates the value of an European option. An analytic formula 
+        exists and is prefered.
+    
+        Parameters
+        ----------
+        steps : int
+            Total number of time steps to break up the simulation over.
+        num_paths : int
+            The number of simulated paths to generate.
+        anti_paths : bool
+            Whether to use anti-paths in the Monte Carlo simulation. Default
+            is True.
+        mo_match : bool
+            Whether to use moment matching in the Monte Carlo simulation. 
+            Default is True
+        save_paths : bool
+            Whether or not to save the paths to the Option object. Default is
+            False.
     
         Returns
         -------
@@ -247,26 +294,29 @@ class Option(object):
             The Monte Carlo estimate of the value of a European option.
     
         """
-        assert option in ['call', 'put'], 'Valid arguments for option are ' \
-                                          '"call" and "put"!'
     
         paths = generate_gbm_paths(
-            spot0, r, vol, periods, steps, num_paths, anti_paths, mo_match
+            self.spot0, self.r, self.vol, self.year_delta, 
+            steps, num_paths, anti_paths, mo_match
             )
     
-        if option == 'call':
-            payoffs = np.maximum(paths[-1, :] - K, 0)
+        if self.opt_type == 'call':
+            payoffs = np.maximum(paths[-1, :] - self.strike, 0)
         else:
-            payoffs = np.maximum(K - paths[-1, :], 0)
+            payoffs = np.maximum(self.strike - paths[-1, :], 0)
+
+        if save_paths:
+            self.sim_paths = paths
     
-        return np.exp(-r * periods) * np.mean(payoffs)
-    '''
+        return np.exp(-self.r * self.year_delta) * np.mean(payoffs)
     
-    def price_american_mc(self, 
+    
+    def __price_american_mc(self, 
                             steps, 
                             num_paths, 
                             anti_paths=False, 
-                            mo_match=True
+                            mo_match=True,
+                            save_paths=False
                             ):
         """Estimates the value of an American option. Using Least-Squares 
         Monte Carlo.
@@ -278,11 +328,14 @@ class Option(object):
         num_paths : int
             The number of simulated paths to generate.
         anti_paths : bool
-            Whether to use anti-paths in the Monte Carlo simulation. Default is
-            True.
+            Whether to use anti-paths in the Monte Carlo simulation. Default
+            is True.
         mo_match : bool
-            Whether to use moment matching in the Monte Carlo simulation. Default
-            is True
+            Whether to use moment matching in the Monte Carlo simulation. 
+            Default is True.
+        save_paths : bool
+            Whether or not to save the paths to the Option object. Default is
+            False.
     
         Returns
         -------
@@ -313,7 +366,10 @@ class Option(object):
             reg = np.polyfit(paths[t, :], V[t+1, :] * df, 3)
             C = np.polyval(reg, paths[t, :])
             V[t, :] = np.where(C > payoffs[t], V[t+1, :] * df, payoffs[t, :])
-    
+
+        if save_paths:
+            self.sim_paths = paths
+
         return df * np.mean(V[1, :])
 
 
