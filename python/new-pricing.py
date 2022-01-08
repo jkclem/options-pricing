@@ -373,10 +373,30 @@ class Option(object):
         return df * np.mean(V[1, :])
 
 
+###
+# Testing
+###
 
+spot0 = 100
+call_strike = 110
+put_strike = 95
+r = 0.05
+vol = 0.2
 start_date = datetime(year=2022, month=1, day=1)
 expire_date = datetime(year=2023, month=1, day=1)
-a = Option('call', 100., 105., 0.015, 0.25, 'american', start_date, expire_date)
+
+american_call = Option(
+    'call', spot0, call_strike, r, vol, 'american', start_date, expire_date
+    )
+american_put = Option(
+    'put', spot0, put_strike, r, vol, 'american', start_date, expire_date
+    )
+european_call = Option(
+    'call', spot0, call_strike, r, vol, 'european', start_date, expire_date
+    )
+european_put = Option(
+    'put', spot0, put_strike, r, vol, 'european', start_date, expire_date
+    )
 
 
 
