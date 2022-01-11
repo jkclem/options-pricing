@@ -242,7 +242,7 @@ class Option(object):
             The Monte Carlo estimate of the value of a European option.
     
         """
-        if self.opt_type == 'american':
+        if self.exercise == 'american':
             self.value = self.__price_american_mc(
                             steps=steps, 
                             num_paths=num_paths, 
