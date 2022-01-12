@@ -218,23 +218,17 @@ class Option(object):
 
 
     def value_option(self, method='mc', **kwargs):
-        assert method in ['mc', 'bs'], 'Valid method arguments are "mc" ' \ 
+        assert method in ['mc', 'bs'], 'Valid method arguments are "mc" ' \
             'and "bs".'
         if method == 'mc':
-            val = self.__value_mc(
-                steps, 
-                num_paths, 
-                anti_paths=False, 
-                mo_match=True,
-                save_paths=False
-                )
+            value = self.__value_mc(**kwargs)
 
         elif method == 'bs':
             assert self.exercise == 'european', 'The exercise type must be ' \
                 '"european" to use Black-Scholes to price the option.'
-            val = self.__black_scholes()
+            value = self.__black_scholes()
 
-        return val
+        return value
 
 
     def __value_mc(self, 
@@ -283,55 +277,56 @@ class Option(object):
                             mo_match=mo_match,
                             save_paths=save_paths
                             )
-        return value
+        return self.value
 
 
-        def __black_scholes(self):
-            """Uses Black-Scholes to value the option.
+    def __black_scholes(self):
+        """Uses Black-Scholes to value the option.
 
-            Relies on Ben Gimpert's code.
+        Relies on Ben Gimpert's code.
 
-            Returns
-            -------
-            None.
+        Returns
+        -------
+        None.
 
-            """
+        """
+        div_yield = 0 if self.div_yield is None else self.div_yield
+
+        sqrt_mat = self.year_delta ** 0.5
+        d1 = ((np.log(self.spot0 / self.strike)
+               + (self.r - div_yield + 0.5 * self.vol**2) 
+               * self.year_delta) / (self.vol * sqrt_mat))
+        d2 = d1 - self.vol * (self.year_delta ** 0.5)
+        d1_pdf = norm.pdf(d1)
+        riskless_disc = np.exp(-self.r * self.year_delta)
+        yield_disc = np.exp(-div_yield * self.year_delta)
+        if self.opt_type == 'call':
+            d1_cdf = norm.cdf(d1)
+            d2_cdf = norm.cdf(d2)
+            delta = yield_disc * d1_cdf
+            value = self.spot0 * delta - riskless_disc * self.strike * d2_cdf
+            theta = (-yield_disc * (self.spot0 * d1_pdf * self.vol) 
+                     / (2 * sqrt_mat) 
+                     - self.r * self.strike * riskless_disc * d2_cdf 
+                     + div_yield * self.spot0 * yield_disc * d1_cdf)
+            rho = self.strike * self.year_delta * riskless_disc * d2_cdf
     
-            sqrt_mat = self.year_delta ** 0.5
-            d1 = ((np.log(self.spot0 / strike)
-                   + (self.r- self.div_yield + 0.5 * self.vol**2) 
-                   * self.year_delta) / (self.vol * sqrt_mat))
-            d2 = d1 - self.vol * (self.year_delta ** 0.5)
-            d1_pdf = norm.pdf(d1)
-            riskless_disc = np.exp(-self.r * self.year_delta)
-            yield_disc = np.exp(-self.div_yield * self.year_delta)
-            if self.opt_type == 'call':
-                d1_cdf = norm.cdf(d1)
-                d2_cdf = norm.cdf(d2)
-                delta = yield_disc * d1_cdf
-                value = self.spot0 * delta - riskless_disc * strike * d2_cdf
-                theta = (-yield_disc * (self.spot0 * d1_pdf * self.vol) 
-                         / (2 * sqrt_mat) 
-                         - self.r * strike * riskless_disc * d2_cdf 
-                         + self.div_yield * self.spot0 * yield_disc * d1_cdf)
-                rho = strike * self.year_delta * riskless_disc * d2_cdf
-        
-            else:  # self.opt_type == 'put':
-                neg_d1_cdf = norm.cdf(-d1)
-                neg_d2_cdf = norm.cdf(-d2)
-                delta = -yield_disc * neg_d1_cdf
-                value = riskless_disc*strike*neg_d2_cdf + self.spot0*delta
-                theta = (-yield_disc * (self.spot0 * d1_pdf * self.vol) 
-                         / (2 * sqrt_mat) + self.r* strike 
-                         * riskless_disc * neg_d2_cdf - self.div_yield 
-                         * self.spot0 * yield_disc * neg_d1_cdf)
-                rho = -strike * self.year_delta * riskless_disc * neg_d2_cdf
-        
-            vega = self.spot0 * yield_disc * d1_pdf * sqrt_mat
-            gamma = yield_disc * (d1_pdf / (self.spot0 * self.vol * sqrt_mat))
+        else:  # self.opt_type == 'put':
+            neg_d1_cdf = norm.cdf(-d1)
+            neg_d2_cdf = norm.cdf(-d2)
+            delta = -yield_disc * neg_d1_cdf
+            value = riskless_disc*self.strike*neg_d2_cdf + self.spot0*delta
+            theta = (-yield_disc * (self.spot0 * d1_pdf * self.vol) 
+                     / (2 * sqrt_mat) + self.r*self.strike 
+                     * riskless_disc * neg_d2_cdf - div_yield 
+                     * self.spot0 * yield_disc * neg_d1_cdf)
+            rho = -self.strike * self.year_delta * riskless_disc * neg_d2_cdf
     
-            self.value, self.delta, self.gamma = value, delta, gamma
-            self.theta, self.vega, self.rho = theta, vega, rho
+        vega = self.spot0 * yield_disc * d1_pdf * sqrt_mat
+        gamma = yield_disc * (d1_pdf / (self.spot0 * self.vol * sqrt_mat))
+
+        self.value, self.delta, self.gamma = value, delta, gamma
+        self.theta, self.vega, self.rho = theta, vega, rho
 
         return value
         
@@ -501,10 +496,8 @@ def plot_value_vs_strike(strike_delta,
                          exercise,
                          start_date,
                          expire_date,
-                         steps,
-                         num_paths,
-                         anti_paths,
-                         mo_match
+                         method='mc',
+                         **kwargs
                          ):
     strike_range = np.arange(spot0 - strike_delta, spot0 + strike_delta + 1)
     values = []
@@ -512,9 +505,7 @@ def plot_value_vs_strike(strike_delta,
         temp_option = Option(
         opt_type, spot0, int(strike_price), r, vol, exercise, start_date, expire_date
         )
-        temp_val = temp_option.price_mc(
-            steps, num_paths, anti_paths, mo_match, save_paths=False
-            )
+        temp_val = temp_option.value_option(method, **kwargs)
         values.append(temp_val)
     plt.plot(strike_range, values)
     plt.title(f'{exercise.upper()} {opt_type.upper()} Value vs. Strike '\
