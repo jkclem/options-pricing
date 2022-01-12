@@ -15,6 +15,8 @@ from scipy.stats import norm
 def generate_std_norm(n, m, anti_paths=True, mo_match=True):
     """Generate a matrix of random draws from a standard normal distribution.
 
+    Relies on Yves Hilpisch's code.
+
     Parameters
     ----------
     n : int
@@ -54,6 +56,8 @@ def generate_gbm_paths(spot0, r, vol, periods, steps, num_paths,
     """This generates geometric Brownian Motion paths of 
     prices/values/levels of an asset/portfolio/index using Monte Carlo 
     simulation.
+
+    Relies on Yves Hilpisch's code.
 
     CAUTION: this produces a num_paths x (steps + 1) array. Using large values
     can generate matrices too large to fit in memory, or can cause slow downs.
@@ -240,8 +244,8 @@ class Option(object):
                  mo_match=True,
                  save_paths=False
                  ):
-        """
-        
+        """Value the option using Monte Carlo simulation of Geometric Brownian
+        Motion.
 
         steps : int
             Total number of time steps to break up the simulation over.
@@ -279,10 +283,19 @@ class Option(object):
                             mo_match=mo_match,
                             save_paths=save_paths
                             )
-        return self.value
+        return value
 
 
         def __black_scholes(self):
+            """Uses Black-Scholes to value the option.
+
+            Relies on Ben Gimpert's code.
+
+            Returns
+            -------
+            None.
+
+            """
     
             sqrt_mat = self.year_delta ** 0.5
             d1 = ((np.log(self.spot0 / strike)
@@ -296,7 +309,7 @@ class Option(object):
                 d1_cdf = norm.cdf(d1)
                 d2_cdf = norm.cdf(d2)
                 delta = yield_disc * d1_cdf
-                val = self.spot0 * delta - riskless_disc * strike * d2_cdf
+                value = self.spot0 * delta - riskless_disc * strike * d2_cdf
                 theta = (-yield_disc * (self.spot0 * d1_pdf * self.vol) 
                          / (2 * sqrt_mat) 
                          - self.r * strike * riskless_disc * d2_cdf 
@@ -307,7 +320,7 @@ class Option(object):
                 neg_d1_cdf = norm.cdf(-d1)
                 neg_d2_cdf = norm.cdf(-d2)
                 delta = -yield_disc * neg_d1_cdf
-                val = riskless_disc * strike * neg_d2_cdf + self.spot0 * delta
+                value = riskless_disc*strike*neg_d2_cdf + self.spot0*delta
                 theta = (-yield_disc * (self.spot0 * d1_pdf * self.vol) 
                          / (2 * sqrt_mat) + self.r* strike 
                          * riskless_disc * neg_d2_cdf - self.div_yield 
@@ -317,10 +330,10 @@ class Option(object):
             vega = self.spot0 * yield_disc * d1_pdf * sqrt_mat
             gamma = yield_disc * (d1_pdf / (self.spot0 * self.vol * sqrt_mat))
     
-            self.val, self.delta, self.gamma = val, delta, gamma
+            self.value, self.delta, self.gamma = value, delta, gamma
             self.theta, self.vega, self.rho = theta, vega, rho
 
-        return val
+        return value
         
 
     
@@ -332,7 +345,9 @@ class Option(object):
                             save_paths=False
                             ):
         """Estimates the value of an European option. An analytic formula 
-        exists and is prefered.
+        exists and is prefered. Assumes Geometric Brownian Motion.
+
+        Relies on Yves Hilpisch's code.
     
         Parameters
         ----------
@@ -380,8 +395,10 @@ class Option(object):
                             mo_match=True,
                             save_paths=False
                             ):
-        """Estimates the value of an American option. Using Least-Squares 
-        Monte Carlo.
+        """Estimates the value of an American option using Least-Squares 
+        Monte Carlo. Assumes Geometric Brownian Motion.
+
+        Relies on Yves Hilpisch's code.
     
         Parameters
         ----------
