@@ -9,6 +9,7 @@ code in pyfin (https://github.com/someben/pyfin/blob/master/pyfin).
 """
 from datetime import datetime
 import numpy as np
+from scipy.stats import norm
 
 
 def generate_std_norm(n, m, anti_paths=True, mo_match=True):
@@ -104,7 +105,7 @@ def check_option_params(opt_type,
                         exercise,
                         start_date,
                         expire_date,
-                        instr_yield
+                        div_yield
                         ):
     assert opt_type in ['call', 'put'], 'Valid arguments for opt_type ' \
         f'are "call" and "put". You passed {opt_type}.'
@@ -126,9 +127,9 @@ def check_option_params(opt_type,
     assert isinstance(expire_date, datetime), 'Valid arguments for ' \
         'start_date are of time datetime.datetime. You passed ' \
         f'{expire_date} of type {type(expire_date)}.'
-    assert isinstance(instr_yield, float) or instr_yield is None, 'Valid ' \
-        'arguments for instr_yield are of type float. You passed ' \
-        f'{instr_yield} of type {type(instr_yield)}.'
+    assert isinstance(div_yield, float) or div_yield is None, 'Valid ' \
+        'arguments for div_yield are of type float. You passed ' \
+        f'{div_yield} of type {type(div_yield)}.'
     return
 
 
@@ -156,7 +157,7 @@ class Option(object):
         The date at which the option expires
     year_delta : float
         The time between start_date and expire_date measured in years.
-    instr_yield : float
+    div_yield : float
         Yield of the asset.
 
     Methods
@@ -172,7 +173,7 @@ class Option(object):
                  exercise,
                  start_date,
                  expire_date,
-                 instr_yield=None
+                 div_yield=None
                  ):
         check_option_params(
             opt_type=opt_type,
@@ -183,7 +184,7 @@ class Option(object):
             exercise=exercise,
             start_date=start_date,
             expire_date=expire_date,
-            instr_yield=instr_yield
+            div_yield=div_yield
             )
         self.opt_type = opt_type
         self.spot0 = spot0
@@ -194,7 +195,7 @@ class Option(object):
         self.start_date=start_date,
         self.expire_date=expire_date,
         self.year_delta=(expire_date - start_date).days / 365
-        self.instr_yield = instr_yield
+        self.div_yield = div_yield
         return
 
 
@@ -208,11 +209,14 @@ class Option(object):
             exercise=self.exercise,
             start_date=start_date,
             expire_date=self.expire_date,
-            instr_yield=self.instr_yield
+            div_yield=self.div_yield
             )
 
 
-    def price_mc(self, 
+
+
+
+    def __value_mc(self, 
                  steps, 
                  num_paths, 
                  anti_paths=False, 
@@ -243,7 +247,7 @@ class Option(object):
     
         """
         if self.exercise == 'american':
-            self.value = self.__price_american_mc(
+            self.value = self.__value_american_mc(
                             steps=steps, 
                             num_paths=num_paths, 
                             anti_paths=anti_paths, 
@@ -251,7 +255,7 @@ class Option(object):
                             save_paths=save_paths
                             )
         else:  # If the exercise is 'european'
-            self.value = self.__price_european_mc(
+            self.value = self.__value_european_mc(
                             steps=steps, 
                             num_paths=num_paths, 
                             anti_paths=anti_paths, 
@@ -259,10 +263,51 @@ class Option(object):
                             save_paths=save_paths
                             )
         return self.value
+
+
+        def __black_scholes(self):
+    
+            sqrt_mat = self.year_delta ** 0.5
+            d1 = ((np.log(self.spot0 / strike)
+                   + (self.r- self.div_yield + 0.5 * self.vol**2) 
+                   * self.year_delta) / (self.vol * sqrt_mat))
+            d2 = d1 - self.vol * (self.year_delta ** 0.5)
+            d1_pdf = norm.pdf(d1)
+            riskless_disc = np.exp(-self.r * self.year_delta)
+            yield_disc = np.exp(-self.div_yield * self.year_delta)
+            if self.opt_type == 'call':
+                d1_cdf = norm.cdf(d1)
+                d2_cdf = norm.cdf(d2)
+                delta = yield_disc * d1_cdf
+                val = self.spot0 * delta - riskless_disc * strike * d2_cdf
+                theta = (-yield_disc * (self.spot0 * d1_pdf * self.vol) 
+                         / (2 * sqrt_mat) 
+                         - self.r * strike * riskless_disc * d2_cdf 
+                         + self.div_yield * self.spot0 * yield_disc * d1_cdf)
+                rho = strike * self.year_delta * riskless_disc * d2_cdf
+        
+            else:  # self.opt_type == 'put':
+                neg_d1_cdf = norm.cdf(-d1)
+                neg_d2_cdf = norm.cdf(-d2)
+                delta = -yield_disc * neg_d1_cdf
+                val = riskless_disc * strike * neg_d2_cdf + self.spot0 * delta
+                theta = (-yield_disc * (self.spot0 * d1_pdf * self.vol) 
+                         / (2 * sqrt_mat) + self.r* strike 
+                         * riskless_disc * neg_d2_cdf - self.div_yield 
+                         * self.spot0 * yield_disc * neg_d1_cdf)
+                rho = -strike * self.year_delta * riskless_disc * neg_d2_cdf
+        
+            vega = self.spot0 * yield_disc * d1_pdf * sqrt_mat
+            gamma = yield_disc * (d1_pdf / (self.spot0 * self.vol * sqrt_mat))
+    
+            self.val, self.delta, self.gamma = val, delta, gamma
+            self.theta, self.vega, self.rho = theta, vega, rho
+
+        return val
         
 
     
-    def __price_european_mc(self, 
+    def __value_european_mc(self, 
                             steps, 
                             num_paths, 
                             anti_paths=False, 
@@ -311,7 +356,7 @@ class Option(object):
         return np.exp(-self.r * self.year_delta) * np.mean(payoffs)
     
     
-    def __price_american_mc(self, 
+    def __value_american_mc(self, 
                             steps, 
                             num_paths, 
                             anti_paths=False, 
