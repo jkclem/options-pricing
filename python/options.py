@@ -213,7 +213,24 @@ class Option(object):
             )
 
 
+    def value(self, method='mc', **kwargs):
+        assert method in ['mc', 'bs'], 'Valid method arguments are "mc" ' \ 
+            'and "bs".'
+        if method == 'mc':
+            val = self.__value_mc(
+                steps, 
+                num_paths, 
+                anti_paths=False, 
+                mo_match=True,
+                save_paths=False
+                )
 
+        elif method == 'bs':
+            assert self.exercise == 'european', 'The exercise type must be ' \
+                '"european" to use Black-Scholes to price the option.'
+            val = self.__black_scholes()
+
+        return val
 
 
     def __value_mc(self, 
