@@ -217,7 +217,7 @@ class Option(object):
             )
 
 
-    def value(self, method='mc', **kwargs):
+    def value_option(self, method='mc', **kwargs):
         assert method in ['mc', 'bs'], 'Valid method arguments are "mc" ' \ 
             'and "bs".'
         if method == 'mc':
