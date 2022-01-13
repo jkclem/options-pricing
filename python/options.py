@@ -211,7 +211,7 @@ class Option(object):
             r=self.r,
             vol=self.vol,
             exercise=self.exercise,
-            start_date=start_date,
+            start_date=self.start_date,
             expire_date=self.expire_date,
             div_yield=self.div_yield
             )
@@ -236,7 +236,8 @@ class Option(object):
                  num_paths, 
                  anti_paths=False, 
                  mo_match=True,
-                 save_paths=False
+                 save_paths=False,
+                 seed=None
                  ):
         """Value the option using Monte Carlo simulation of Geometric Brownian
         Motion.
@@ -254,6 +255,8 @@ class Option(object):
         save_paths : bool
             Whether or not to save the paths to the Option object. Default is
             False.
+        seed : NoneType or int
+            A random seed. Default is None
 
         Returns
         -------
@@ -261,6 +264,9 @@ class Option(object):
             The Monte Carlo estimate of the value of a European option.
     
         """
+        if seed is not None:
+            np.random.seed(seed)
+
         if self.exercise == 'american':
             self.value = self.__value_american_mc(
                             steps=steps, 
@@ -385,7 +391,8 @@ class Option(object):
     
     def __value_american_mc(self, 
                             steps, 
-                            num_paths, 
+                            num_paths,
+                            degree=7,
                             anti_paths=False, 
                             mo_match=True,
                             save_paths=False
@@ -401,6 +408,8 @@ class Option(object):
             Total number of time steps to break up the simulation over.
         num_paths : int
             The number of simulated paths to generate.
+        degree : int
+            The degree of fit in LSM.
         anti_paths : bool
             Whether to use anti-paths in the Monte Carlo simulation. Default
             is True.
@@ -433,18 +442,17 @@ class Option(object):
             payoffs = np.maximum(paths - K, 0)
         else:
             payoffs = np.maximum(K - paths, 0)
-    
-        V = np.copy(payoffs)
-    
-        for t in range(steps - 1, 0, -1):
-            reg = np.polyfit(paths[t, :], V[t+1, :] * df, 3)
-            C = np.polyval(reg, paths[t, :])
-            V[t, :] = np.where(C > payoffs[t], V[t+1, :] * df, payoffs[t, :])
+
+        V = payoffs[-1]
+        for t in range(paths.shape[0] - 2, 0, -1):
+            reg = np.polyfit(paths[t], V * df, degree)
+            C = np.polyval(reg, paths[t])
+            V = np.where(C > payoffs[t], V * df, payoffs[t])
 
         if save_paths:
             self.sim_paths = paths
 
-        return df * np.mean(V[1, :])
+        return df*np.mean(V)
 
 
 ###
