@@ -11,7 +11,8 @@ from datetime import datetime
 import numpy as np
 from scipy.stats import norm
 
-from stochastics import *
+from orthopolyreg import OrthoPolyReg
+from stochastic import *
 
 
 def check_option_params(opt_type, 
@@ -357,8 +358,14 @@ class Option(object):
             payoffs = np.maximum(K - paths, 0)
 
         V = payoffs[-1]
-        for t in range(paths.shape[0] - 2, 0, -1):
-            reg = np.polyfit(paths[t], V * df, degree)
+        for t in range(steps - 2, 0, -1):
+            pos_payoff_indices = np.where(V > 0)
+            y = V[pos_payoff_indices] * df
+            X = paths[t][pos_payoff_indices]
+            #reg = OrthoPolyReg()
+            #reg.fit(X, y, degree=degree)
+            #C = reg.predict(paths[t])
+            reg = np.polyfit(X, y, deg=degree)
             C = np.polyval(reg, paths[t])
             V = np.where(C > payoffs[t], V * df, payoffs[t])
 
