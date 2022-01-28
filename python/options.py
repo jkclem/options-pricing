@@ -113,7 +113,7 @@ class Option(object):
         self.start_date=start_date,
         self.expire_date=expire_date,
         self.year_delta=(expire_date - start_date).days / 365
-        self.div_yield = div_yield
+        self.div_yield = div_yield if div_yield is not None else 0.
         return
 
 
@@ -288,7 +288,7 @@ class Option(object):
         """
     
         paths = generate_gbm_paths(
-            self.spot0, self.r, self.vol, self.year_delta, 
+            self.spot0, self.r - self.div_yield, self.vol, self.year_delta, 
             steps, num_paths, anti_paths, mo_match
             )
     
@@ -342,7 +342,7 @@ class Option(object):
         """
         K = self.strike
         spot0 = self.spot0
-        r = self.r
+        r = self.r - self.div_yield
         vol = self.vol
         periods = self.year_delta
         opt_type = self.opt_type
