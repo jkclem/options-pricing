@@ -510,7 +510,7 @@ class Option(object):
 # Testing Functions
 ###
 
-
+from datetime import datetime
 from matplotlib import pyplot as plt
 
 
@@ -553,8 +553,7 @@ def plot_value_vs_strike(strike_delta,
                          r, 
                          vol, 
                          exercise,
-                         start_date,
-                         expire_date,
+                         year_delta,
                          method='mc',
                          **kwargs
                          ):
@@ -562,7 +561,7 @@ def plot_value_vs_strike(strike_delta,
     values = []
     for strike_price in strike_range:
         temp_option = Option(
-        opt_type, spot0, int(strike_price), r, vol, exercise, start_date, expire_date
+        opt_type, spot0, int(strike_price), r, vol, exercise, year_delta
         )
         temp_val = temp_option.value_option(method, **kwargs)
         values.append(temp_val)
