@@ -234,7 +234,7 @@ class Option(object):
             d2_cdf = norm.cdf(d2)
             delta = yield_disc * d1_cdf
             value = self.spot0 * delta - riskless_disc * self.strike * d2_cdf
-            theta = -(-yield_disc * (self.spot0 * d1_pdf * self.vol) 
+            theta = (-yield_disc * (self.spot0 * d1_pdf * self.vol) 
                      / (2 * sqrt_mat) 
                      - self.r * self.strike * riskless_disc * d2_cdf 
                      + div_yield * self.spot0 * yield_disc * d1_cdf)
@@ -245,7 +245,7 @@ class Option(object):
             neg_d2_cdf = norm.cdf(-d2)
             delta = -yield_disc * neg_d1_cdf
             value = riskless_disc*self.strike*neg_d2_cdf + self.spot0*delta
-            theta = -(-yield_disc * (self.spot0 * d1_pdf * self.vol) 
+            theta = (-yield_disc * (self.spot0 * d1_pdf * self.vol) 
                      / (2 * sqrt_mat) + self.r*self.strike 
                      * riskless_disc * neg_d2_cdf - div_yield 
                      * self.spot0 * yield_disc * neg_d1_cdf)
