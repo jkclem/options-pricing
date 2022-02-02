@@ -11,8 +11,8 @@ from datetime import datetime
 import numpy as np
 from scipy.stats import norm
 
-from orthopolyreg import OrthoPolyReg
-from stochastic import *
+#from orthopolyreg import OrthoPolyReg
+from stochastic import generate_gbm_paths
 
 
 def check_option_params(opt_type, 
@@ -132,8 +132,13 @@ class Option(object):
 
 
     def value_option(self, method='mc', **kwargs):
+        """Values an option using a passed in method."""
+
         assert method in ['mc', 'bs'], 'Valid method arguments are "mc" ' \
             'and "bs".'
+
+        self.__valuation_method = method
+
         if method == 'mc':
             value = self.__value_mc(**kwargs)
 
@@ -146,13 +151,15 @@ class Option(object):
 
 
     def __value_mc(self, 
-                 steps, 
-                 num_paths, 
-                 anti_paths=False, 
-                 mo_match=True,
-                 save_paths=False,
-                 seed=None
-                 ):
+                   steps, 
+                   num_paths, 
+                   anti_paths=False, 
+                   mo_match=True,
+                   save_paths=False,
+                   seed=None,
+                   calc_greeks=True,
+                   sens_degree=2
+                   ):
         """Value the option using Monte Carlo simulation of Geometric Brownian
         Motion.
 
@@ -171,6 +178,11 @@ class Option(object):
             False.
         seed : NoneType or int
             A random seed. Default is None
+        calc_greeks : bool
+            Whether to estimate the Greeks or not.
+        sens_degree : int
+            If 2 > sens_degree >= 1, calculate everything but Gamma. If
+            sens_degree >= 2, calculate Gamma, as well.
 
         Returns
         -------
@@ -197,6 +209,17 @@ class Option(object):
                             mo_match=mo_match,
                             save_paths=save_paths
                             )
+
+        if calc_greeks:
+            self. __calc_greeks_mc(self,
+                                   sens_degree,
+                                   steps, 
+                                   num_paths, 
+                                   anti_paths=False, 
+                                   mo_match=True,
+                                   seed=None,
+                                   )
+
         return self.value
 
 
@@ -247,6 +270,7 @@ class Option(object):
 
         self.value, self.delta, self.gamma = value, delta, gamma
         self.theta, self.vega, self.rho = theta, vega, rho
+        self.__greeks_calculated = True
 
         return value
         
@@ -375,6 +399,106 @@ class Option(object):
         return df*np.mean(V)
 
 
+    def __calc_greeks_mc(self,
+                         sens_degree,
+                         steps, 
+                         num_paths, 
+                         anti_paths=False, 
+                         mo_match=True,
+                         seed=None,
+                         ):
+        """
+        """
+        delta, theta, rho, vega, gamma = None, None, None, None, None
+
+        if sens_degree >= 1:
+            delta = self.sensitivity(
+                'spot0', 
+                self.spot0 * 1.0e-05,
+                sens_degree=sens_degree - 1,
+                method='mc',
+                steps=steps, 
+                num_paths=num_paths, 
+                anti_paths=anti_paths, 
+                mo_match=mo_match,
+                seed=seed
+                )
+            theta = -self.sensitivity(
+                'year_delta', 
+                0.001, 
+                sens_degree=sens_degree - 1,
+                method='mc',
+                steps=steps, 
+                num_paths=num_paths, 
+                anti_paths=anti_paths, 
+                mo_match=mo_match,
+                seed=seed
+                )
+            rho = self.sensitivity(
+                'r',
+                0.0001,
+                sens_degree=sens_degree - 1,
+                method='mc',
+                steps=steps, 
+                num_paths=num_paths, 
+                anti_paths=anti_paths, 
+                mo_match=mo_match,
+                seed=seed
+                )
+            vega = self.sensitivity(
+                'vol',
+                0.001, 
+                sens_degree=sens_degree - 1,
+                method='mc',
+                steps=steps, 
+                num_paths=num_paths, 
+                anti_paths=anti_paths, 
+                mo_match=mo_match,
+                seed=seed
+                )
+
+            self.delta = delta
+            self.theta = theta
+            self.rho = rho
+            self.vega = vega
+
+        if sens_degree >= 2:
+            gamma = self.sensitivity(
+                'spot0',
+                self.spot0 * 0.05,
+                opt_measure='delta',
+                sens_degree=sens_degree - 1,
+                method='mc',
+                steps=steps, 
+                num_paths=num_paths, 
+                anti_paths=anti_paths, 
+                mo_match=mo_match,
+                seed=seed
+                )
+            self.gamma = gamma
+
+        self.__greeks_calculated = True
+
+        return
+
+
+    def sensitivity(self, opt_param, opt_param_bump, method, 
+                    opt_measure='value',**method_kwargs):
+        up_opt = self.copy()
+        setattr(
+            up_opt, opt_param, getattr(up_opt, opt_param) + opt_param_bump
+            )
+        down_opt = self.copy()
+        setattr(
+            down_opt, opt_param, getattr(down_opt, opt_param) - opt_param_bump
+            )
+        _ = up_opt.value_option(method=method, **method_kwargs)
+        up_measure = getattr(up_opt, opt_measure)
+        _ = down_opt.value_option(method=method, **method_kwargs)
+        down_measure = getattr(down_opt, opt_measure)
+        return (up_measure - down_measure) / (2 * opt_param_bump)
+
+
 ###
 # Testing Functions
 ###
@@ -383,7 +507,7 @@ class Option(object):
 from matplotlib import pyplot as plt
 
 
-def plot_sim_paths(num_steps, 
+def plot_sim_paths(steps, 
                    option, 
                    title='Simulated Price Paths for {exercise} {opt_type} Option', 
                    xlab='Time (Start = 0, Expiry = 1)', 
@@ -398,7 +522,7 @@ def plot_sim_paths(num_steps,
             opt_type=option.opt_type.upper()
             )
 
-    x = np.arange(0, num_steps + 1) / num_steps
+    x = np.arange(0, steps + 1) / steps
     plt.plot(x, option.sim_paths)
     plt.xlabel(xlab)
     plt.ylabel(ylab)
