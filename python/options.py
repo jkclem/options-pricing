@@ -7,7 +7,6 @@ Created on Fri Jan  7 21:01:39 2022
 Code draws from Yves Hilpisch's code in Python for Finance and Ben Gimpert's
 code in pyfin (https://github.com/someben/pyfin/blob/master/pyfin).
 """
-from datetime import datetime
 import numpy as np
 from scipy.stats import norm
 
@@ -21,8 +20,7 @@ def check_option_params(opt_type,
                         r, 
                         vol, 
                         exercise,
-                        start_date,
-                        expire_date,
+                        year_delta,
                         div_yield
                         ):
     assert opt_type in ['call', 'put'], 'Valid arguments for opt_type ' \
@@ -39,12 +37,8 @@ def check_option_params(opt_type,
         f'type float. You passed {vol} of type {type(vol)}.'
     assert exercise in ['american', 'european'], 'Valid arguments for ' \
         f'exercise are "american" and "european". You passed {exercise}.'
-    assert isinstance(start_date, datetime), 'Valid arguments for ' \
-        'start_date are of time datetime.datetime. You passed ' \
-        f'{start_date} of type {type(start_date)}.'
-    assert isinstance(expire_date, datetime), 'Valid arguments for ' \
-        'start_date are of time datetime.datetime. You passed ' \
-        f'{expire_date} of type {type(expire_date)}.'
+    assert isinstance(year_delta, float) and (year_delta > 0), 'Valid ' \
+        'arguments for year_delta are positive floats.'
     assert isinstance(div_yield, float) or div_yield is None, 'Valid ' \
         'arguments for div_yield are of type float. You passed ' \
         f'{div_yield} of type {type(div_yield)}.'
@@ -69,10 +63,8 @@ class Option(object):
     exercise : str
         Type of exercise of the option. Valid arguments are "american" and
         "european".
-    start_date : datetime.datetime
-        The date at which you are pricing the option.
-    expire_date : datetime.datetime
-        The date at which the option expires
+    year_delta : float
+        A postive float measuring the time to expiration in years.
     year_delta : float
         The time between start_date and expire_date measured in years.
     div_yield : float
@@ -89,8 +81,7 @@ class Option(object):
                  r,
                  vol,
                  exercise,
-                 start_date,
-                 expire_date,
+                 year_delta,
                  div_yield=None
                  ):
         check_option_params(
@@ -100,8 +91,7 @@ class Option(object):
             r=r,
             vol=vol,
             exercise=exercise,
-            start_date=start_date,
-            expire_date=expire_date,
+            year_delta=year_delta,
             div_yield=div_yield
             )
         self.opt_type = opt_type
@@ -110,9 +100,7 @@ class Option(object):
         self.r = r
         self.vol = vol
         self.exercise = exercise
-        self.start_date=start_date,
-        self.expire_date=expire_date,
-        self.year_delta=(expire_date - start_date).days / 365
+        self.year_delta=year_delta
         self.div_yield = div_yield if div_yield is not None else 0.
         return
 
@@ -125,8 +113,7 @@ class Option(object):
             r=self.r,
             vol=self.vol,
             exercise=self.exercise,
-            start_date=self.start_date,
-            expire_date=self.expire_date,
+            year_delta=self.year_delta,    
             div_yield=self.div_yield
             )
 
@@ -211,13 +198,12 @@ class Option(object):
                             )
 
         if calc_greeks:
-            self. __calc_greeks_mc(self,
-                                   sens_degree=sens_degree,
+            self. __calc_greeks_mc(sens_degree=sens_degree,
                                    steps=steps, 
                                    num_paths=num_paths, 
                                    anti_paths=anti_paths, 
                                    mo_match=mo_match,
-                                   seed=seed,
+                                   seed=seed
                                    )
 
         return self.value
@@ -370,7 +356,7 @@ class Option(object):
         vol = self.vol
         periods = self.year_delta
         opt_type = self.opt_type
-    
+
         df = np.exp(-r * periods/steps)
         paths = generate_gbm_paths(
             spot0, r, vol, periods, steps, num_paths, anti_paths, mo_match
@@ -416,7 +402,7 @@ class Option(object):
                          num_paths, 
                          anti_paths=False, 
                          mo_match=True,
-                         seed=None,
+                         seed=None
                          ):
         """
         """
