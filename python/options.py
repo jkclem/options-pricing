@@ -212,12 +212,12 @@ class Option(object):
 
         if calc_greeks:
             self. __calc_greeks_mc(self,
-                                   sens_degree,
-                                   steps, 
-                                   num_paths, 
-                                   anti_paths=False, 
-                                   mo_match=True,
-                                   seed=None,
+                                   sens_degree=sens_degree,
+                                   steps=steps, 
+                                   num_paths=num_paths, 
+                                   anti_paths=anti_paths, 
+                                   mo_match=mo_match,
+                                   seed=seed,
                                    )
 
         return self.value
@@ -399,6 +399,17 @@ class Option(object):
         return df*np.mean(V)
 
 
+    def greeks(self):
+        assert self.__greeks_calculated, "The greeks are not calculated."
+        return {
+            'delta': self.delta, 
+            'theta': self.theta, 
+            'rho': self.rho,
+            'vega': self.vega,
+            'gamma': self.gamma
+            }
+
+
     def __calc_greeks_mc(self,
                          sens_degree,
                          steps, 
@@ -412,6 +423,8 @@ class Option(object):
         delta, theta, rho, vega, gamma = None, None, None, None, None
 
         if sens_degree >= 1:
+            if seed is not None:
+                np.random.seed(seed)
             delta = self.sensitivity(
                 'spot0', 
                 self.spot0 * 1.0e-05,
@@ -423,6 +436,8 @@ class Option(object):
                 mo_match=mo_match,
                 seed=seed
                 )
+            if seed is not None:
+                np.random.seed(seed)
             theta = -self.sensitivity(
                 'year_delta', 
                 0.001, 
@@ -434,6 +449,8 @@ class Option(object):
                 mo_match=mo_match,
                 seed=seed
                 )
+            if seed is not None:
+                np.random.seed(seed)
             rho = self.sensitivity(
                 'r',
                 0.0001,
@@ -445,6 +462,8 @@ class Option(object):
                 mo_match=mo_match,
                 seed=seed
                 )
+            if seed is not None:
+                np.random.seed(seed)
             vega = self.sensitivity(
                 'vol',
                 0.001, 
@@ -463,6 +482,8 @@ class Option(object):
             self.vega = vega
 
         if sens_degree >= 2:
+            if seed is not None:
+                np.random.seed(seed)
             gamma = self.sensitivity(
                 'spot0',
                 self.spot0 * 0.05,
